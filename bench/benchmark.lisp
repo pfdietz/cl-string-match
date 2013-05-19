@@ -1,5 +1,3 @@
-;;; -*- package: CL-STRING-MATCH; Syntax: Common-lisp; Base: 10 -*-
-
 ;; Copyright (c) 2013, Victor Anyakin <anyakinvictor@yahoo.com>
 ;; All rights reserved.
 
@@ -26,82 +24,68 @@
 ;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-;; The following implementation is based on algorithm described in:
+;; simple benchmarks for the string search functions to evaluate their
+;; performance relative to the standard SEARCH routine
 ;;
-;; Algorithm described in: Chapter 5, p. 772 in
-;;  “Algorithms”, Robert Sedgewick and Kevin Wayne. 4th
-;;
-;; ``Efficient Text Searching in Java'' By Laura Werner.
-;; (appeared in Java Report, February 1999)
-;;
-;; http://icu-project.org/docs/papers/efficient_text_searching_in_java.html
+;; lx86cl --load "benchmark.lisp" --eval "(run-benchmarks)"
 
-(in-package :cl-string-match)
+;; based on: Performing Lisp: Measure and Explore by Kenneth R. Anderson
+;; see also: http://openmap.bbn.com/~kanderso/performance/
 
-;; --------------------------------------------------------
+(defparameter *times* 1000000)
 
-;; Member variables for storing precomputed pattern data
-(defstruct bm
-  (right)
-  (pat))
+(defparameter needle "abcdef")
+(defparameter haystack "abcdeabcdeabcdeabcdeabcdeabcdeabcdefabcdeabcdeabcdeabcdeabcdeabcde")
+
+(ql:quickload "cl-string-match")
 
 ;; --------------------------------------------------------
 
-;; Map a collation element to an array index
-(defun hash-bm (order)
-  (round (mod (char-code order) 256)))
+(defun timer (N function &rest args)
+  (declare (fixnum N) (function function))
+  (time
+   (dotimes (i N)
+     (declare (fixnum i))
+     (apply function args))))
 
 ;; --------------------------------------------------------
 
-(defun initialize-bm (pat)
-  (declare (type string pat))
-  (let ((bm (make-bm
-	     :pat pat
-	     :right (make-array 256 :element-type 'integer
-				:initial-element -1)))
-	(pat-len (length pat)))
-    
-    (loop :for j :from 0 :below pat-len
-       :do (setf (aref (bm-right bm)
-		       (hash-bm (char pat j)))
-		 j))
-    bm))
+(defun run-search ()
+  (format t "~%Benchmarking standard system SEARCH~%")
+  (timer *times* #'search needle haystack))
 
 ;; --------------------------------------------------------
 
-(defun search-bm (bm txt)
-  (declare (type string txt))
-  "Search for pattern bm in txt."
-  (let* ((txt-len (length txt))
-	 (pat-len (length (bm-pat bm)))
-	 (delta (- txt-len pat-len))
-	 (skip 0))
-
-    (loop :for i = 0 :then (+ i skip) :while (<= i delta) :do
-       (progn
-	 ;; Does the pattern match the text at position i ?
-	 (setf skip 0)
-	 (loop
-	    :for j :downfrom (- pat-len 1) :downto 0
-	    :when (char/= (char (bm-pat bm) j)
-			  (char txt (+ i j))) :do
-	    (progn
-	      (setf skip
-		    (- j (aref (bm-right bm)
-			       (hash-bm (char txt (+ i j))))))
-	      (when (< skip 1)
-		(setf skip 1))
-	      (loop-finish)))
-	 ;; found
-	 (when (= skip 0)
-	   (return-from search-bm i))))
-    (return-from search-bm NIL)))
+(defun run-brute-force ()
+  (format t "~%Benchmarking BRUTE FORCE~%")
+  (timer *times* #'sm:string-contains-brute needle haystack))
 
 ;; --------------------------------------------------------
 
-(defun string-contains-bm (pat txt)
-  (declare (type string pat)
-	   (type string txt))
-  (search-bm (initialize-bm pat) txt))
-    
-;; EOF
+(defun run-boyer-moore ()
+  (format t "~%Benchmarking BOYER MOORE simple~%")
+  (timer *times* #'sm:string-contains-bm needle haystack)
+
+  (format t "~%Benchmarking BOYER MOORE with index~%")
+  (let ((idx (sm:initialize-bm needle)))
+    (timer *times* #'sm:search-bm idx haystack)))
+
+;; --------------------------------------------------------
+
+(defun run-rabin-karp ()
+  (format t "~%Benchmarking RABIN KARP simple~%")
+  (timer *times* #'sm:string-contains-rk needle haystack)
+
+  (format t "~%Benchmarking RABIN KARP with index~%")
+  (let ((idx (sm:initialize-rk needle)))
+    (timer *times* #'sm:search-rk idx haystack)))
+
+;; --------------------------------------------------------
+
+(defun run-benchmarks ()
+  (run-search)
+  (run-brute-force)
+  (run-boyer-moore)
+  (run-rabin-karp))
+
+(format t "Eval: (run-benchmarks) to run all benchmarks~%")

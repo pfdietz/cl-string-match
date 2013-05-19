@@ -1,4 +1,4 @@
-;;; -*- package: CLSTRINGMATCH.SYSTEM; Syntax: Common-lisp; Base: 10 -*-
+;;; -*- package: CL-STRING-MATCH-TEST; Syntax: Common-lisp; Base: 10 -*-
 
 ;; Copyright (c) 2013, Victor Anyakin <anyakinvictor@yahoo.com>
 ;; All rights reserved.
@@ -25,28 +25,57 @@
 ;; (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (unless (find-package :clstringmatch.system)
-    (defpackage :clstringmatch.system
-      (:use :common-lisp :asdf))))
+;; Running tests from the command line:
+;; 
+;; sbcl --load smoke.lisp --quit
+;; lx86cl --load smoke.lisp --eval '(quit)'
+
+(ql:quickload :cl-string-match)
+(ql:quickload :lisp-unit)
 
 ;; --------------------------------------------------------
 
-(in-package :clstringmatch.system)
+(defpackage :cl-string-match-test
+  (:use :common-lisp :cl-string-match :lisp-unit))
+
+(in-package :cl-string-match-test)
+
+(setq *print-failures* t)
 
 ;; --------------------------------------------------------
 
-(asdf:defsystem #:cl-string-match
-  :description
-  "Provides implementations of the standard sub-string search (string
-matching) algorithms: brute-force, Boyer-Moore, Rabin-Karp, etc."
-  :license "BSD"
-  :components ((:module "src"
-			:serial T
-			:components
-			((:file "package")
-			 (:file "brute-force")
-			 (:file "boyer-moore")
-			 (:file "rabin-karp")))))
+(defparameter *funcs*
+  '(string-contains-brute
+    string-contains-bm
+    string-contains-rk))
+
+;; --------------------------------------------------------
+
+(defmacro run-assertions (val needle haystack)
+  `(progn ,@(loop :for func :in *funcs*
+	       :collect `(assert-equal ,val (,func ,needle ,haystack)))))
+
+;; --------------------------------------------------------
+
+(define-test basic-test
+  (run-assertions 0 "a" "a--")
+  (run-assertions 1 "a" "-a-")
+  (run-assertions 2 "a" "--a")
+  (run-assertions nil "a" "-b-"))
+
+;; --------------------------------------------------------
+
+(define-test str-test
+  (run-assertions 0 "abc" "abcab_")
+  (run-assertions 1 "abc" "_abcab_")
+  (run-assertions 2 "abc" "ababc"))
+
+;; --------------------------------------------------------
+
+;; (format t ">> result: ~a~%" (string-contains-rk "abc" "abcab_"))
+;; (format t ">> result: ~a~%" (string-contains-rk "abc" "_abcab_"))
+;; (format t ">> result: ~a~%" (string-contains-rk "abc" "ababc_"))
+
+(run-tests :all)
 
 ;; EOF
