@@ -1,4 +1,4 @@
-;;; -*- package: CLSTRINGMATCH.SYSTEM; Syntax: Common-lisp; Base: 10 -*-
+;;; -*- package: CL-STRING-MATCH; Syntax: Common-lisp; Base: 10 -*-
 
 ;; Copyright (c) 2013, Victor Anyakin <anyakinvictor@yahoo.com>
 ;; All rights reserved.
@@ -25,34 +25,29 @@
 ;; (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (unless (find-package :clstringmatch.system)
-    (defpackage :clstringmatch.system
-      (:use :common-lisp :asdf))))
+;;; Commentz-Walter algorithm implementation
+;;; TODO
+
+(in-package :cl-string-match)
 
 ;; --------------------------------------------------------
 
-(in-package :clstringmatch.system)
+(defun initialize-cw (patterns)
+  "Initialize CW automata for the given set of patterns."
+  )
 
 ;; --------------------------------------------------------
 
-(asdf:defsystem #:cl-string-match
-  :description
-  "Provides implementations of the standard sub-string search (string
-matching) algorithms: brute-force, Boyer-Moore, Rabin-Karp, etc."
-  :license "BSD"
-  :depends-on (:alexandria)
-  :components ((:module "src"
-			:serial T
-			:components
-			((:file "package")
-			 (:file "brute-force")
-			 (:file "boyer-moore")
-			 (:file "boyer-moore-horspool")
-			 (:file "rabin-karp")
-			 (:file "knuth-morris-pratt")
-			 (:file "aho-corasick")
-			 (:file "suffix-tree"))))
-  :in-order-to ((test-op (load-op cl-string-match-test))))
+(defun search-cw (idx txt)
+    "Looks for patterns defined in the index in the txt."
+
+  )
+
+;; --------------------------------------------------------
+
+(defun string-contains-cw (pat txt)
+  "Looks for the given pattern in the text and returns index of the
+first occurence."
+)
 
 ;; EOF
