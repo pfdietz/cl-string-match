@@ -125,16 +125,33 @@ letter) and a mark (some value attributed to the matching string)."
 ;; --------------------------------------------------------
 
 (defun trie-contains (trie s)
-  "Returns T if the given Trie contains the given string."
+  "Returns T if the given TRIE contains the given string S."
 
   (declare #.*standard-optimize-settings*)
   (loop
      :for c :across s
-     :for node = trie :then (trie-find-child node c)
+     :for node := (trie-find-child trie c) :then (trie-find-child node c)
      :while node
      :finally (return
-		(when node
-		  (trie-node-mark node)))))
+                (when node
+                  (trie-node-mark node)))))
+
+;; --------------------------------------------------------
+
+(defun trie-contains-prefix (trie s)
+  "Checks if the given TRIE contains some prefix of the given string S.
+
+Returns the length of the matched prefix."
+
+  (declare #.*standard-optimize-settings*)
+  (loop
+     :with matched
+     :for depth :from 0
+     :for c :across s
+     :for node := (trie-find-child trie c) :then (trie-find-child node c)
+     :while node
+     :when (trie-node-mark node) :do (setf matched (1+ depth))
+     :finally (return matched)))
 
 ;; --------------------------------------------------------
 
@@ -193,17 +210,23 @@ start position of the first matching pattern and its index."
   "Looks for the given pattern in the text and returns index of the
 first occurence."
 
-  (declare #.*standard-optimize-settings*)
+  (declare #.*standard-optimize-settings*
+	   (type string pat)
+	   (type string txt))
 
-  (let ((trie (trie-build (list pat))))
-    (loop
-       :for c :across txt
-       :for j :from 1 :to (length txt)
-       :for node = (trie-find-child trie c) :then (trie-find-child node c)
-       :do (if node
-	       (if (trie-node-mark node)
-		   (return (- j (length pat))))
-	       (setf node (trie-find-child trie c)))
-       :unless node :do (setf node trie))))
+  (if (= (length pat) 0)
+      0
+      (let* ((trie (trie-build (list pat)))
+	     (res 
+	      (loop
+		 :for c :across txt
+		 :for j :from 1 :to (length txt)
+		 :for node = (trie-find-child trie c) :then (trie-find-child node c)
+		 :do (if node
+			 (if (trie-node-mark node)
+			     (return (- j (length pat))))
+			 (setf node (trie-find-child trie c)))
+		 :unless node :do (setf node trie))))
+	(if res res nil))))
 
 ;; EOF

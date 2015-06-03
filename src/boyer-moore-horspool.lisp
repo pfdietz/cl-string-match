@@ -26,91 +26,169 @@
 ;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-;;; Boyer-Moore-Horspool algorithm implementation based on description
-;; from Wikipedia article
+;;; Boyer-Moore-Horspool algorithm
+;;; simplification of the Boyer-Moore algorithm;
+
+;;; * preprocessing phase in O(m+s) time and O(s) space complexity;
+;;; * searching phase in O(mn) time complexity;
+;;; * the average number of comparisons for one text character is between 1/s and 2/(s+1).
+
+;; implementation based on the description from the book
 ;;
-;; http://en.wikipedia.org/wiki/Boyer-Moore-Horspool_algorithm
+;; "Exact String Matching Algorithms" by Christian Charras and Thierry Lecroq
+;;
+;; http://www-igm.univ-mlv.fr/~lecroq/string/node18.html#SECTION00180
 
 (in-package :cl-string-match)
 
 ;; --------------------------------------------------------
 
-;; Member variables for storing precomputed pattern data
-(defstruct bmh
-  (bad-char-skip)
-  (pat)
-  (pat-len))
+(defmacro define-bmh-matcher (variant-tag
+                              &key
+			      (key-get 'char)
+			      (key-code 'char-code)
+			      (key-cmp= 'char=)
+			      (empty-pat "")
+			      (alphabet-size char-code-limit)
+			      (data-type 'simple-string))
+
+  (let* ((index-name (format-name "BMH~a" variant-tag))
+	 (initialize-name (format-name "INITIALIZE-BMH~a" variant-tag))
+	 (search-name (format-name "SEARCH-BMH~a" variant-tag))
+	 (matcher-name (format-name "STRING-CONTAINS-BMH~a" variant-tag))
+	 (make-index (format-name "MAKE-~a" index-name))
+	 (the-bad-char-skip (format-name "~a-BAD-CHAR-SKIP" index-name))
+	 (the-pat (format-name "~a-PAT" index-name))
+	 (the-pat-len (format-name "~a-PAT-LEN" index-name)))
+    `(progn
+
+       ;; --------------------------------------------------------
+       ;; Member variables for storing precomputed pattern data
+       (defstruct ,index-name
+	 (bad-char-skip #() :type (simple-array fixnum (*)))
+	 (pat ,empty-pat :type ,data-type)
+	 (pat-len 0 :type fixnum))
+
+       ;; --------------------------------------------------------
+
+       (defun ,initialize-name (pat)
+	 "Preprocess the needle.
+Initialize the table to default value."
+
+	 (declare (type ,data-type pat)
+		  #.*standard-optimize-settings*)
+
+	 ;; When a character is encountered that does not occur in the
+	 ;; needle, we can safely skip ahead for the whole length of the
+	 ;; needle.
+	 (let ((idx
+		(,make-index
+		 :pat pat
+		 :pat-len (length pat)
+		 :bad-char-skip
+		 (make-array ,alphabet-size
+			     :element-type 'fixnum
+			     :initial-element (the fixnum (length pat))))))
+
+	   (loop
+	      :for k :from 0 :below (- (length pat) 1) :do
+	      (setf (aref (,the-bad-char-skip idx)
+			  (,key-code (,key-get pat k)))
+		    (- (length pat) k 1)))
+	   idx))
+
+       ;; --------------------------------------------------------
+
+       (defun ,search-name (idx txt)
+	 "Search for pattern defined in the IDX in TXT."
+
+	 (declare (type ,data-type txt)
+		  #.*standard-optimize-settings*)
+
+	 (loop
+	    :with m fixnum = (,the-pat-len idx)
+	    :with n fixnum = (length txt)
+	    :with j fixnum = 0
+	    ;; Search the haystack, while the needle can still be within it.
+	    :while (<= j (- n m))
+	    :do (let ((c (,key-get txt (- (+ j m) 1))))
+
+		  (when (,key-cmp= c (,key-get (,the-pat idx) (- m 1)))
+		    (loop :for i fixnum :from 0 :below m
+		       :while (,key-cmp= (,key-get (,the-pat idx) i)
+					 (,key-get txt (+ i j)))
+		       :finally
+		       (when (= i m)
+			 (return-from ,search-name j))))
+
+		  (incf j (aref (,the-bad-char-skip idx)
+				(,key-code c))))))
+
+       ;; --------------------------------------------------------
+
+       (defun ,matcher-name (pat txt)
+	 (declare (type ,data-type pat)
+		  (type ,data-type txt)
+		  #.*standard-optimize-settings*)
+
+	 (,search-name (,initialize-name pat) txt))
+
+       )))
 
 ;; --------------------------------------------------------
 
-(defun initialize-bmh (pat)
-  "Preprocess.
-Initialize the table to default value. "
+(define-bmh-matcher "")
 
-  (declare #.*standard-optimize-settings*)
+;; The following set of BMH matchers operate on strings that contain
+;; characters in the range 0-256 (single-byte or octet). Therefore,
+;; the skip array in the index is not equal to the CHAR-CODE-LIMIT
+;; that is huge for Lisp implementations with Unicode support, but has
+;; a fixed size of 256 cells
+(define-bmh-matcher "8"
+		    :empty-pat ""
+                    :key-code ascii-char-code
+                    :alphabet-size ub-char-code-limit)
 
-  ;; When a character is encountered that does not occur in the
-  ;; needle, we can safely skip ahead for the whole length of the
-  ;; needle.
-  (let ((idx
-	 (make-bmh
-	  :pat pat
-	  :pat-len (length pat)
-	  :bad-char-skip (make-array char-code-limit
-				     :initial-element (length pat)))))
+(export 'bmh8)
+(export 'initialize-bmh8)
+(export 'search-bmh8)
+(export 'string-contains-bmh8)
 
-    (loop :for c :across pat
-       :for i :from 0 :to (length pat) :do
-       (setf (aref (bmh-bad-char-skip idx)
-		   (char-code c))
-	     (- (length pat) i 1)))
-    idx))
+#|
+(defun report-bmh-idx (idx)
+  "Report skip values for the pattern in the BMH index."
+  (loop :for c :across (bmh-pat idx)
+     :do (format t "~a: ~a~%" c (aref (bmh-bad-char-skip idx)
+				      (char-code c)))))
 
-;; --------------------------------------------------------
+(defun search-tbmh (idx txt)
+  )
 
-(defun search-bmh (bmh txt)
-  "Search for pattern bm in txt."
+void TUNEDBM(char *x, int m, char *y, int n) {
+   int j, k, shift, bmBc[ASIZE];
 
-  (declare #.*standard-optimize-settings*)
-  (let ((haystack 0)
-	(hlen (length txt))
-	(last (- (bmh-pat-len bmh) 1)))
+   /* Preprocessing */
+   preBmBc(x, m, bmBc);
+   shift = bmBc[x[m - 1]];
+   bmBc[x[m - 1]] = 0;
+   memset(y + n, x[m - 1], m);
 
-    ;; Search the haystack, while the needle can still be within it.
-    (loop :while (>= hlen (bmh-pat-len bmh)) :do
-       (progn
-	 ;; scan from the end of the needle
-	 (loop :for scan = last :then (- scan 1)
-	    :while (char= (char txt (+ haystack scan))
-			  (char (bmh-pat bmh) scan))
-	    :when (= scan 0)
-	    :do (return-from search-bmh haystack))
-
-	 ;; otherwise, we need to skip some bytes and start
-	 ;; again. Note that here we are getting the skip value based
-	 ;; on the last byte of needle, no matter where we didn't
-	 ;; match. So if needle is: "abcd" then we are skipping based
-	 ;; on 'd' and that value will be 4, and for "abcdd" we again
-	 ;; skip on 'd' but the value will be only 1. The alternative
-	 ;; of pretending that the mismatched character was the last
-	 ;; character is slower in the normal case (E.g. finding
-	 ;; "abcd" in "...azcd..." gives 4 by using 'd' but only
-	 ;; 4-2==2 using 'z'.
-	 (let ((skip (aref (bmh-bad-char-skip bmh)
-			   (char-code (char txt last)))))
-	   
-	   (setf hlen (- hlen skip))
-	   (setf haystack (+ haystack  skip)))))
-    nil))
-
-;; --------------------------------------------------------
-
-(defun string-contains-bmh (pat txt)
-  (declare (type string pat)
-	   (type string txt)
-	   #.*standard-optimize-settings*)
-
-  (search-bmh (initialize-bmh pat) txt))
-
-
+   /* Searching */
+   j = 0;
+   while (j < n) {
+      k = bmBc[y[j + m -1]];
+      while (k !=  0) {
+         j += k; k = bmBc[y[j + m -1]];
+         j += k; k = bmBc[y[j + m -1]];
+         j += k; k = bmBc[y[j + m -1]];
+      }
+      if (memcmp(x, y + j, m - 1) == 0 && j < n)
+         OUTPUT(j);
+      j += shift;                          /* shift */
+   }
+}
 ;; EOF
+
+
+
+|#

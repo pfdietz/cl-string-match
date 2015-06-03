@@ -12,7 +12,6 @@ algorithms:
 * Brute-force (also known as naïve algorithm)
 * Boyer-Moore (with mismatched character heuristic)
 * Boyer-Moore-Horspool algorithm
-* Rabin-Karp algorithm
 * Knuth-Morris-Pratt algorithm
 * Aho-Corasick algorithm (with finite set of patterns)
 
@@ -26,13 +25,51 @@ Data structures:
 * Prefix trie
 * Suffix tree
 
-Project home page:
+Some algorithms (Brute-force, Boyer-Moore-Horspool) have parametric
+implementations making it possible to declare specific implementations
+for application-specific custom data types and data structures.
 
-http://sourceforge.net/projects/clstringmatch/
+Additional resources:
 
-Also take a look at the project Wiki:
+* [Project home page](https://bitbucket.org/vityok/cl-string-match)
+* Also take a look at the [project Wiki](http://sourceforge.net/p/clstringmatch/wiki/Home/)
+* If you prefer other project hosting sites, take a look at [our mirror on SourceForge](http://clstringmatch.sourceforge.net/)
 
-http://sourceforge.net/p/clstringmatch/wiki/Home/
+
+USAGE
+=====
+
+At the moment cl-string-match is not supported by Quicklisp. Installation is manual.
+
+Cl-string-match exports functions in `cl-string-match` package (nicknamed `sm`).
+
+Shortcuts look for given pattern `pat` in text `txt`. They are usually much slower but are easier to use:
+
+* `string-contains-brute` *pat* *txt* — Brute-force
+* `string-contains-bm` *pat* *txt* — Boyer-Moore
+* `string-contains-bmh` *pat* *txt* — Boyer-Moore-Horspool
+* `string-contains-kmp` *pat* *txt* — Knuth-Morris-Pratt
+* `string-contains-ac` *pat* *txt* — Aho-Corasick
+
+A more robust approach is to use pre-calculated index data that is
+processed by a pair of `initialize` and `search` functions:
+
+* `initialize-bm` *pat* and `search-bm` *bm* *txt*
+* `initialize-bmh` *pat* and `search-bm` *bm* *txt*
+* `initialize-rk` *pat* and `search-rk` *rk* *txt*
+* `initialize-kmp` *pat* and `search-kmp` *kmp* *txt*
+* `initialize-ac` *pat* and `search-ac` *ac* *txt*. `initialize-ac`
+  can accept a list of patterns that are compiled into a trie.
+
+Brute-force algorithm does not use pre-calculated data and has no
+"initialize" function.
+
+Following example looks for a given substring *pat* in a given line of
+text *txt* using Boyer-Moore-Horspool algorithm implementation:
+
+    (let ((idx (initialize-bmh "abc")))
+      (search-bmh idx "ababcfbgsldkj"))
+
 
 TODO
 ====
@@ -46,6 +83,10 @@ development. Following tasks are still to be implemented:
 * Better replication of the SEARCH function parameters, implement
   search on generic sequences where possible, not just on
   strings. Search on byte sequences/arrays should be possible.
+
+* Rabin-Karp algorithm is not implemented properly: type conversions
+  and native arithmetic operations bloat code and make it barely
+  readable. Function returns incorrect results in some cases.
 
 * Improve performance: some implementations (i.e. Aho-Corasick,
   Rabin-Karp) are extremely slow compared with theoretical boundaries.
@@ -78,5 +119,3 @@ Additional algorithms:
 * Thompson NFA
 
 * Consider inexact matching and other algorithms on strings
-
-;; EOF

@@ -19,6 +19,7 @@
   '(sm:string-contains-brute
     sm:string-contains-bm
     sm:string-contains-bmh
+    sm:string-contains-bmh8
     sm:string-contains-rk
     sm:string-contains-kmp
     sm:string-contains-ac))
@@ -32,6 +33,13 @@
 ;; --------------------------------------------------------
 
 (define-test basic-test
+    ;; empty sequences
+  (run-assertions 0   "" "")
+  (run-assertions nil "a" "")
+  ;; one-letter sequences
+  (run-assertions nil "a" "b")
+  (run-assertions 0   "a" "a")
+  ;; longer sequences
   (run-assertions 0 "a" "a--")
   (run-assertions 1 "a" "-a-")
   (run-assertions 2 "a" "--a")
@@ -42,7 +50,14 @@
 (define-test str-test
   (run-assertions 0 "abc" "abcab_")
   (run-assertions 1 "abc" "_abcab_")
-  (run-assertions 2 "abc" "ababc"))
+  (run-assertions 2 "abc" "ababc")
+  (run-assertions 5 "GCAGAGAG" "GCATCGCAGAGAGTATACAGTACG")
+  (run-assertions 14 "abracadabra" "abacadabrabracabracadabrabrabracad")
+  (run-assertions 8 "rab" "abacadabrabracabracadabrabrabracad")
+  (run-assertions nil "bcara" "abacadabrabracabracadabrabrabracad")
+  (run-assertions 23 "rabrabracad" "abacadabrabracabracadabrabrabracad")
+  (run-assertions 0 "abacad" "abacadabrabracabracadabrabrabracad")
+  )
 
 ;; --------------------------------------------------------
 

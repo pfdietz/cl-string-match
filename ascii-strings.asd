@@ -1,4 +1,4 @@
-;;; -*- package: CLSTRINGMATCH.SYSTEM; Syntax: Common-lisp; Base: 10 -*-
+;;; -*- package: ASCII-STRINGS.SYSTEM; Syntax: Common-lisp; Base: 10 -*-
 
 ;; Copyright (c) 2013, Victor Anyakin <anyakinvictor@yahoo.com>
 ;; All rights reserved.
@@ -26,33 +26,25 @@
 ;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (unless (find-package :clstringmatch.system)
-    (defpackage :clstringmatch.system
+  (unless (find-package :ascii-strings.system)
+    (defpackage :ascii-strings.system
       (:use :common-lisp :asdf))))
 
 ;; --------------------------------------------------------
 
-(in-package :clstringmatch.system)
+(in-package :ascii-strings.system)
 
 ;; --------------------------------------------------------
 
-(asdf:defsystem #:cl-string-match
+(asdf:defsystem #:ascii-strings
   :description
-  "Provides implementations of the standard sub-string search (string
-matching) algorithms: brute-force, Boyer-Moore, Rabin-Karp, etc."
+  "Operations on ASCII strings. Essentially this can be any kind of
+single-byte encoded strings."
   :license "BSD"
-  :depends-on (:alexandria :ascii-strings)
-  :components ((:module "src"
+  :depends-on (:alexandria :babel)
+  :components ((:module "contrib"
 			:serial T
 			:components
-			((:file "package")
-			 (:file "brute-force")
-			 (:file "boyer-moore")
-			 (:file "boyer-moore-horspool")
-			 (:file "rabin-karp")
-			 (:file "knuth-morris-pratt")
-			 (:file "aho-corasick")
-			 (:file "suffix-tree"))))
-  :in-order-to ((test-op (load-op cl-string-match-test))))
+			((:file "ascii-strings")))))
 
 ;; EOF
