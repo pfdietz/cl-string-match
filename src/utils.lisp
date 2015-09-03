@@ -1,6 +1,6 @@
-;;; -*- package: CLSTRINGMATCH.SYSTEM; Syntax: Common-lisp; Base: 10 -*-
+;;; -*- package: CL-STRING-MATCH; Syntax: Common-lisp; Base: 10 -*-
 
-;; Copyright (c) 2013, Victor Anyakin <anyakinvictor@yahoo.com>
+;; Copyright (c) 2015, Victor Anyakin <anyakinvictor@yahoo.com>
 ;; All rights reserved.
 
 ;; Redistribution and use in source and binary forms, with or without
@@ -25,44 +25,26 @@
 ;; (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 ;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (unless (find-package :clstringmatch.system)
-    (defpackage :clstringmatch.system
-      (:use :common-lisp :asdf))))
+;; Different utility functions for dealing with strings or similar
+;; data structures that don't fit under conventional topics in this
+;; library.
+
+(in-package :cl-string-match)
 
 ;; --------------------------------------------------------
 
-(in-package :clstringmatch.system)
+(defun prefixed-with (txt pref)
+  "Returns T if the given string `TXT` is prefixed (starts with) the
+given prefix `PREF`."
+  (when (>= (length txt) (length pref))
+    (string= txt pref :end1 (length pref))))
 
 ;; --------------------------------------------------------
 
-(asdf:defsystem #:cl-string-match
-  :description
-  "Provides implementations of the standard sub-string search (string
-matching) algorithms: brute-force, Boyer-Moore, Rabin-Karp, etc."
-  :license "BSD"
-  :author "Vityok https://bitbucket.org/vityok"
-  :version "2015.7.30"
-  :depends-on (:alexandria
-	       :ascii-strings
-	       :yacc	; Portable RE
-	       :jpl-queues	; Aho-Corasick
-	       :iterate	; at least Aho-Corasick
-	       )
-  :components ((:module "src"
-			:serial T
-			:components
-			((:file "package")
-			 (:file "utils")
-			 (:file "brute-force")
-			 (:file "boyer-moore")
-			 (:file "boyer-moore-horspool")
-			 (:file "rabin-karp")
-			 (:file "knuth-morris-pratt")
-			 (:file "shift-or")
-			 (:file "aho-corasick")
-			 (:file "suffix-tree")
-			 (:file "pre"))))
-  :in-order-to ((test-op (load-op cl-string-match-test))))
+(defun suffixed-with (txt suff)
+  "Returns T if the given string `TXT` is suffixed (ends with) the
+given suffix `SUFF`."
+  (when (>= (length txt) (length suff))
+    (string= txt suff :start1 (- (length txt) (length suff)))))
 
 ;; EOF

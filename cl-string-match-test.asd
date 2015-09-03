@@ -27,7 +27,7 @@
 
 
 #|
-  This file is a part of cl-aww project.
+  This file is a part of cl-string-match library.
 |#
 
 (in-package :cl-user)
@@ -42,11 +42,13 @@
   :description
   "Tests of the CL-STRING-MATCH functions."
   :license "BSD"
-  :depends-on (:cl-string-match :lisp-unit)
+  :depends-on (:cl-string-match :lisp-unit :ascii-strings)
   :components ((:module "t"
 			:serial T
 			:components
 			((:file "package")
+			 (:file "strings")
+			 (:file "test-pre")
 			 (:file "smoke"))))
   :perform (load-op :after (op c) (asdf:clear-system c)))
 

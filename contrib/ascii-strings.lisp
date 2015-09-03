@@ -1,17 +1,27 @@
-;;; ASCII strings: vectors made of unsigned bytes
-
-;; Functions and data types are similar to the standard Common Lisp
-;; functions and types but are prefixed with ub- to avoid naming
-;; conflicts.
-;;
-;; This package aims at providing single-byte strings functionality
-;; for Unicode-enabled Common Lisp implementations. Another aim is to
-;; reduce memory footpring and boost performance of the
-;; string-processing algorithms.
+;;; ASCII strings: vectors made of unsigned bytes (octets)
 
 (defpackage :ascii-strings
   (:use :common-lisp :alexandria)
   (:nicknames :ascii)
+  (:documentation "This library implements functions and data types
+similar to the standard Common Lisp functions and types but prefixed
+with ub- to avoid naming conflicts.
+
+This package aims at providing single-byte strings functionality
+for Unicode-enabled Common Lisp implementations. Another aim is to
+reduce memory footprint and boost performance of the
+string-processing algorithms.
+
+There are similar libraries/packages with slight differences. Check,
+for instance, com.informatimago.common-lisp.cesarum.ascii.
+
+
+This package also provides a faster alternative to the standard
+read-line function. A line reader is created by the
+make-ub-line-reader function, an ub-string is read by the
+ub-read-line, and a standard line can be read by the
+ub-read-line-string.")
+
   (:export
    ;; common functions and types
    :ub-char
@@ -81,22 +91,34 @@
 
    ;; line reader
    :make-ub-line-reader
-   :ub-read-line))
+   :ub-line-reader-close
+   :ub-line-reader-file-position
+   :ub-read-line
+   :ub-read-line-raw
+   :ub-read-line-string))
 
 (in-package :ascii-strings)
 
-(declaim (optimize speed (safety 0)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (declaim (optimize (speed 3)
+		     (safety 0))))
 
 ;; --------------------------------------------------------
 
-(deftype ub-char () '(unsigned-byte 8))
+(deftype ub-char ()
+  "An octet. A number equal to the char code."
+  '(unsigned-byte 8))
 
-;; strings must be vectors to allow for fill pointers and displacement
-(deftype ub-string () '(vector ub-char))
+(deftype ub-string ()
+  "Strings must be vectors to allow for fill pointers and
+displacement. However, SBCL does a better job on optimizations when it
+deals with simple arrays."
+  '(vector ub-char))
 
-;; buffer of octets should be a simple array to allow compiler
-;; optimizations
-(deftype ub-buffer () '(simple-array ub-char (*)))
+(deftype ub-buffer ()
+  "Buffer of octets is a simple array to allow compiler
+optimizations."
+  '(simple-array ub-char (*)))
 
 (define-constant ub-char-code-limit 256
   :documentation
@@ -131,12 +153,18 @@
 (defun ub-char>= (c1 c2)
   (>= c1 c2))
 
-(defun ub-CHAR-EQUAL ())
-(defun ub-CHAR-NOT-EQUAL ())
-(defun ub-CHAR-LESSP ())
-(defun ub-CHAR-GREATERP ())
-(defun ub-CHAR-NOT-GREATERP ())
-(defun ub-CHAR-NOT-LESSP ())
+(defun ub-CHAR-EQUAL ()
+  (error "TODO"))
+(defun ub-CHAR-NOT-EQUAL ()
+  (error "TODO"))
+(defun ub-CHAR-LESSP ()
+  (error "TODO"))
+(defun ub-CHAR-GREATERP ()
+  (error "TODO"))
+(defun ub-CHAR-NOT-GREATERP ()
+  (error "TODO"))
+(defun ub-CHAR-NOT-LESSP ()
+  (error "TODO"))
 
 ;; Function CHARACTER
 ;; Function CHARACTERP
@@ -151,13 +179,17 @@
   (or (ub-alpha-char-p c)
       (and (>= c 48) (<= c 57))))
 
-(defun ub-DIGIT-CHAR ())
+(defun ub-DIGIT-CHAR ()
+  (error "TODO"))
 
-(defun ub-DIGIT-CHAR-P ())
+(defun ub-DIGIT-CHAR-P ()
+  (error "TODO"))
 
-(defun ub-GRAPHIC-CHAR-P ())
+(defun ub-GRAPHIC-CHAR-P ()
+  (error "TODO"))
 
-(defun ub-STANDARD-CHAR-P ())
+(defun ub-STANDARD-CHAR-P ()
+  (error "TODO"))
 
 (declaim (inline ub-char-upcase))
 (defun ub-char-upcase (c)
@@ -183,6 +215,8 @@
 
 (declaim (inline ub-char-code))
 (defun ub-char-code (char)
+  "Returns a code of the ub-char. Since ub-char is a number (an
+octet), it is essentially an identity function."
   char)
 
 (declaim (inline ub-char-int))
@@ -195,11 +229,14 @@
   "This is like the standard CHAR-CODE but returns an octet."
   (ldb (byte 8 0) (char-code char)))
 
-(defun ub-CODE-CHAR ())
+(defun ub-CODE-CHAR ()
+  (error "TODO"))
 
-(defun ub-CHAR-NAME ())
+(defun ub-CHAR-NAME ()
+  (error "TODO"))
 
-(defun ub-NAME-CHAR ())
+(defun ub-NAME-CHAR ()
+  (error "TODO"))
 
 ;; --------------------------------------------------------
 ;; STRING FUNCTIONS
@@ -222,6 +259,9 @@
 
 ;; this function is ported from SBCL sources mipsstrops.lisp file and
 ;; is adopted for the ascii strings data types
+;;
+;; todo: implement remaining string comparison functions and properly
+;; handle nil values for start,end parameters
 (defun %ub-string-compare (string1 start1 end1 string2 start2 end2)
   (declare (ub-string string1 string2))
   (declare (fixnum start1 end1 start2 end2))
@@ -254,19 +294,28 @@
 
 ;; --------------------------------------------------------
 
-(defun ub-STRING-UPCASE ())
-(defun ub-STRING-DOWNCASE ())
-(defun ub-STRING-CAPITALIZE ())
+(defun ub-STRING-UPCASE ()
+  (error "TODO"))
+(defun ub-STRING-DOWNCASE ()
+  (error "TODO"))
+(defun ub-STRING-CAPITALIZE ()
+  (error "TODO"))
 
-(defun ub-NSTRING-UPCASE ())
-(defun ub-NSTRING-DOWNCASE ())
-(defun ub-NSTRING-CAPITALIZE ())
+(defun ub-NSTRING-UPCASE ()
+  (error "TODO"))
+(defun ub-NSTRING-DOWNCASE ()
+  (error "TODO"))
+(defun ub-NSTRING-CAPITALIZE ()
+  (error "TODO"))
 
-(defun ub-STRING-TRIM ())
+(defun ub-STRING-TRIM ()
+  (error "TODO"))
 
-(defun ub-STRING-LEFT-TRIM ())
+(defun ub-STRING-LEFT-TRIM ()
+  (error "TODO"))
 
-(defun ub-STRING-RIGHT-TRIM ())
+(defun ub-STRING-RIGHT-TRIM ()
+  (error "TODO"))
 
 ;; --------------------------------------------------------
 
@@ -275,30 +324,56 @@
 
 ;; --------------------------------------------------------
 
-(defun ub-STRING/= ())
-(defun ub-STRING< ())
-(defun ub-STRING> ())
-(defun ub-STRING<= ())
-(defun ub-STRING>= ())
-(defun ub-STRING-EQUAL ())
-(defun ub-STRING-NOT-EQUAL ())
-(defun ub-STRING-LESSP ())
-(defun ub-STRING-GREATERP ())
-(defun ub-STRING-NOT-GREATERP ())
-(defun ub-STRING-NOT-LESSP ())
+(defun ub-STRING/= ()
+  (error "TODO"))
+(defun ub-STRING< ()
+  (error "TODO"))
+(defun ub-STRING> ()
+  (error "TODO"))
+(defun ub-STRING<= ()
+  (error "TODO"))
+(defun ub-STRING>= ()
+  (error "TODO"))
+(defun ub-STRING-EQUAL ()
+  (error "TODO"))
+(defun ub-STRING-NOT-EQUAL ()
+  (error "TODO"))
+(defun ub-STRING-LESSP ()
+  (error "TODO"))
+(defun ub-STRING-GREATERP ()
+  (error "TODO"))
+(defun ub-STRING-NOT-GREATERP ()
+  (error "TODO"))
+(defun ub-STRING-NOT-LESSP ()
+  (error "TODO"))
 
 ;; --------------------------------------------------------
 ;; Data convertors
 
-(defun ub-to-string (ustr)
-  "Convert octets vector into a standard Common Lisp string."
-  (declare (type ub-string ustr)
-           (optimize speed))
+(defun ub-to-string (ustr &key (start 0) end)
+  "Converts either an UB-STRING or UB-BUFFER into a standard Common
+Lisp string.
 
-  (let ((str (make-string (length ustr))))
-    (loop :for i :from 0 :below (length ustr)
-       :do (setf (char str i)
-                 (code-char (ub-char ustr i))))
+START, END the start and end offsets within the given USTR to
+           translate into a standard string.
+"
+  (declare (type fixnum start))
+  (check-type ustr (or ub-string ub-buffer))
+
+  (let* ((%end (the fixnum (or end (length ustr))))
+	 (%length (- %end start))
+	 (str (make-string (the fixnum %length))))
+    (etypecase ustr
+      (ub-buffer
+       (loop :for i :from 0 :below %length
+	  :do (setf (char str i)
+		    (code-char (aref (the ub-buffer ustr)
+				     (+ i start))))))
+      (ub-string
+       (loop :for i :from 0 :below %length
+	  :do (setf (char str i)
+		    (code-char (aref ustr
+				     (+ i start)))))))
     str))
 
 ;; --------------------------------------------------------
@@ -325,13 +400,24 @@
 ;; Reading lines from the input stream
 ;; --------------------------------------------------------
 
-(define-constant +ub-line-reader-buffer-size+ (* 1024 1024))
+(define-constant +ub-line-reader-buffer-size+ (* 1024 1024)
+  :documentation "Defines the size of the buffer used by the line
+reader in bytes.")
 
 ;; --------------------------------------------------------
 
-(defstruct (ub-line-reader
-             (:conc-name ub-line-reader.))
-  stream
+(defstruct (ub-line-reader)
+  "Encapsulates a buffer and the state of the line reader. Created by
+the make-ub-line-reader function, and the every next line is obtained
+by one of the ub-read-line-* functions.
+
+You should not forget to close the underlying stream using either a
+standard close function or the ub-line-reader-close function.
+
+It is anticipated that the underlying stream is an input stream with
+element-type set to ub-char."
+
+  (stream nil :type (or null stream))
   (buffer (make-array +ub-line-reader-buffer-size+
                       :element-type 'ub-char)
           :type ub-buffer)
@@ -341,85 +427,167 @@
   (fill 0 :type fixnum)
   ;; current position of the reader in the buffer
   (pos 0  :type fixnum)
+  ;; set to T when the reader stumbles upon an end of file
   (eof nil :type boolean))
 
 ;; --------------------------------------------------------
 
-(defun ub-read-line (reader)
-  (declare (type ub-line-reader reader)
-           (optimize speed (safety 0)))
+(defun ub-line-reader-file-position (reader &optional position)
+  "Returns the current position within the stream according to the
+amount of information really read.
 
-  (when (ub-line-reader.eof reader)
-    (return-from ub-read-line nil))
+When the buffer caches more information than was really read by one of
+UB-READ-LINE function the standard FILE-POSITION function will return
+position of the buffer that is larger than the position that was read
+by the user.
 
-  ;; (format t "UB-READ-LINE: pos: ~a~%" (ub-line-reader.pos reader))
-  (let* ((old-pos (ub-line-reader.pos reader))
-         (new-pos (loop :for i :from old-pos :below (ub-line-reader.fill reader)
-                     :until (= (aref (ub-line-reader.buffer reader) i)
-                               #.(char-code #\Newline))
-                     :finally (return i))))
+Returned number can be used by the standard FILE-POSITION function to
+adjust the position within a stream.
+
+When optional argument POSITION is supplied, the file position is
+adjusted accordingly in the underlying stream. The buffer is flushed."
+
+  (check-type reader ub-line-reader)
+
+  (if position
+      (with-slots (stream fill pos eof) reader
+	(file-position stream position)
+	(setf fill 0
+	      pos 0
+	      eof nil))
+
+      (with-slots (stream fill pos) reader
+	;; the logic is rather simple: file-position will return position
+	;; read till then end of the buffer (specified by the FILL slot)
+	;; so we subtract it and then add the position advanced by the
+	;; user that is specified by the POS slot
+	(+ (- (file-position stream)
+	      fill)
+	   pos))))
+
+;; --------------------------------------------------------
+
+(defun ub-line-reader-close (reader)
+  "Mimics a standard close function: closes the underlying stream and
+resets the reader to its initial state."
+
+  (check-type reader ub-line-reader)
+
+  (with-slots (stream fill pos eof) reader
+    (close stream)
+    (setf fill 0
+	  pos 0
+	  eof nil)))
+
+;; --------------------------------------------------------
+
+(defun ub-read-line-raw (reader)
+  "Reads data into the pre-allocated buffer in the READER structure
+and returns two values: start and end positions of the line within the
+buffer that can be used to extract this line contents from the
+buffer.
+
+Please note, that unlike the standard read-line or the
+liberal-read-line by jasonmelbye this function works with the
+Unix-type of lines - sequence of characters delimited by the Newline
+symbol."
+
+  (check-type reader ub-line-reader)
+
+  (when (ub-line-reader-eof reader)
+    (return-from ub-read-line-raw nil))
+
+  (let* ((old-pos (ub-line-reader-pos reader))
+         (new-pos (loop :for i :from old-pos :below (ub-line-reader-fill reader)
+			:until (= (aref (ub-line-reader-buffer reader) i)
+				  #.(char-code #\Newline))
+			:finally (return i))))
 
     (declare (type fixnum old-pos)
              (type fixnum new-pos))
 
-    ;; (format t "pos: old=~a new=~a fill=~a~%" old-pos new-pos (ub-line-reader.fill reader))
-
-    (if (and (= (ub-char (ub-line-reader.buffer reader)
+    (if (and (= (ub-char (ub-line-reader-buffer reader)
                          new-pos)
                 #.(char-code #\Newline))
              ;; we are not advancing forward, it looks like we've
              ;; reached end of file and the last character is a newline
              (/= old-pos
-                 (ub-line-reader.fill reader)))
+                 (ub-line-reader-fill reader)))
         ;; we have found the end of the current line, advance the
         ;; position and return the new line
-        (let ((new-line (make-array (- new-pos old-pos)
-                                    :element-type 'ub-char
-                                    :displaced-to (ub-line-reader.buffer reader)
-                                    :displaced-index-offset old-pos)))
-          (setf (ub-line-reader.pos reader) (1+ new-pos))
+	(progn
+	  (setf (ub-line-reader-pos reader) (1+ new-pos))
+	  (return-from ub-read-line-raw (values old-pos new-pos)))
 
-          (return-from ub-read-line new-line))
+      ;; else
+      (progn
+	;; when the line ends in the next chunk of data, we have to
+	;; move the currently read incomplete line to the beginning
+	;; of the reader buffer, fill the rest of the buffer with
+	;; data from the stream and proceed with our task
+	(setf (ub-line-reader-fill reader) (- new-pos
+					      (ub-line-reader-pos reader))
+	      (ub-line-reader-pos reader)  0)
 
-        ;; else
-        (progn
-          ;; when the line ends in the next chunk of data, we have to
-          ;; move the currently read incomplete line to the beginning
-          ;; of the reader buffer, fill the rest of the buffer with
-          ;; data from the stream and proceed with our task
+	(replace (the ub-buffer (ub-line-reader-buffer reader))
+		 (the ub-buffer (ub-line-reader-buffer reader))
+		 :start1 0 :end1 (ub-line-reader-fill reader)
+		 :start2 old-pos :end2 new-pos)
 
-          ;; (format t "read the next chunk of data~%")
-          (setf (ub-line-reader.fill reader) (- new-pos
-                                                (ub-line-reader.pos reader))
-                (ub-line-reader.pos reader)  0)
+	(let ((old-fill (ub-line-reader-fill reader)))
 
-          (replace (the ub-buffer (ub-line-reader.buffer reader))
-                   (the ub-buffer (ub-line-reader.buffer reader))
-                   :start1 0 :end1 (ub-line-reader.fill reader)
-                   :start2 old-pos :end2 new-pos)
+	  (setf (ub-line-reader-fill reader)
+		(read-sequence (ub-line-reader-buffer reader)
+			       (ub-line-reader-stream reader)
+			       :start (ub-line-reader-fill reader)
+			       :end +ub-line-reader-buffer-size+))
+	  (if (= (ub-line-reader-fill reader) old-fill)
+	      (progn
+		;; end of file is reached, return the last line and
+		;; set the corresponding flag
+		(setf (ub-line-reader-eof reader) T)
+		(return-from ub-read-line-raw
+		  (values (ub-line-reader-pos reader)
+			  old-fill)))
 
-          (let ((old-fill (ub-line-reader.fill reader)))
+	    ;; read the complete line after the second part was
+	    ;; obtained from the disk
+	    (ub-read-line-raw reader)))))))
 
-            (setf (ub-line-reader.fill reader)
-                  (read-sequence (ub-line-reader.buffer reader)
-                                 (ub-line-reader.stream reader)
-                                 :start (ub-line-reader.fill reader)
-                                 :end +ub-line-reader-buffer-size+))
-            (if (= (ub-line-reader.fill reader) old-fill)
-                (progn
-                  ;;(format t "eof~%")
+;; --------------------------------------------------------
 
-                  ;; end of file is reached, return the last line and
-                  ;; set the corresponding flag
-                  (setf (ub-line-reader.eof reader) T)
-                  (make-array (- old-fill (ub-line-reader.pos reader))
-                              :element-type 'ub-char
-                              :displaced-to (ub-line-reader.buffer reader)
-                              :displaced-index-offset (ub-line-reader.pos reader)))
+(defun ub-read-line (reader)
+  "Reads data into a pre-allocated buffer in the reader structure and
+returns an array displaced to the contents of the next line in that
+buffer."
+  (declare (inline ub-read-line-raw))
 
-                ;; read the complete line after the second part was
-                ;; obtained from the disk
-                (ub-read-line reader)))))))
+  (check-type reader ub-line-reader)
+
+  (when (ub-line-reader-eof reader)
+    (return-from ub-read-line nil))
+
+  (multiple-value-bind (start end) (ub-read-line-raw reader)
+    (make-array (- end start)
+		:element-type 'ub-char
+		:displaced-to (ub-line-reader-buffer reader)
+		:displaced-index-offset start)))
+
+;; --------------------------------------------------------
+
+(defun ub-read-line-string (reader)
+  "Reads data into a pre-allocated buffer in the reader structure and
+returns a standard Lisp string."
+  (declare (inline ub-read-line-raw))
+
+  (check-type reader ub-line-reader)
+
+  (when (ub-line-reader-eof reader)
+    (return-from ub-read-line-string nil))
+
+  (multiple-value-bind (start end) (ub-read-line-raw reader)
+    (ub-to-string (ub-line-reader-buffer reader)
+		  :start start :end end)))
 
 ;; --------------------------------------------------------
 
@@ -428,9 +596,9 @@
 SEQUENCE. This is meant as a memory-efficient replacement for the
 ordinary SUBSEQ that allocates a new sequence."
 
-  (declare (type vector sequence)
-           (type fixnum start)
-           (type (or null fixnum) end))
+  (check-type sequence vector)
+  (check-type start fixnum)
+  (check-type end (or null fixnum))
 
   (if (and (zerop start)
            (or (null end)

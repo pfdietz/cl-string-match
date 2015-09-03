@@ -47,7 +47,21 @@
 (defstruct (trie-node
 	     (:print-function trie-node-printer))
   "Each node of a trie contains a list of child nodes, a label (the
-letter) and a mark (some value attributed to the matching string)."
+letter) and a mark (some value attributed to the matching string).
+
+Trie root node is like all other nodes but its `ID` is used as an
+increment to create ids for new nodes.
+
+Slots:
+
+* `id` - unique node identifier, root node has the largest id.
+* `children` - a hash table with labels as keys, `trie-node` as
+  values.
+* `mark` - output function, when not null marks the last character of a
+  keyword and is returned as the search result.
+* `fail` - fail transition to another node.
+* `depth` - number of nodes from the root node to this node.
+"
 
   (id 0 :type fixnum) ; numeric node identifier, nodes counter in the root
   children	      ; this is essentially a goto transition
@@ -61,7 +75,7 @@ letter) and a mark (some value attributed to the matching string)."
 
 (defun trie-node-printer (obj stream depth)
   "We have to avoid standard Lisp printer because of the FAIL links
-that turn our tree into a network with cycles, plunging the default
+that turn our tree into a network with cycles, throwing the default
 printer into an infinite loop."
 
   (declare (ignore depth))
@@ -78,11 +92,11 @@ printer into an infinite loop."
 (defun trie-add-child (trie label mark &key (id 0) (constructor #'make-trie-node))
   "Add a child node to the given node with the given label and mark.
 
-Constructor can be either MAKE-TRIE-NODE or any other structure
-constructor derieved from the TRIE-NODE struct."
+Constructor can be either `MAKE-TRIE-NODE` or any other structure
+constructor derieved from the `TRIE-NODE` struct."
 
-  (declare #.*standard-optimize-settings*
-	   (function constructor))
+  (declare #.*standard-optimize-settings*)
+  (check-type constructor function)
 
   (let ((child (funcall constructor
 			:id id
@@ -97,16 +111,16 @@ constructor derieved from the TRIE-NODE struct."
 ;; --------------------------------------------------------
 
 (defun trie-add-keyword (trie kw idx &key (constructor #'make-trie-node))
-  ;; Starting at the root, follow the path labeled by chars
-  ;; of Pi
-  ;;
-  ;; If the path ends before Pi, continue it by adding new
-  ;; edges and nodes for the remaining characters of Pi
-  ;;
-  ;; Store identifier i of Pi at the terminal node of the
-  ;; path
+   "Starting at the root, follow the path labeled by chars of Pi
+
+If the path ends before Pi, continue it by adding new edges and nodes
+for the remaining characters of Pi.
+
+Store identifier i of Pi at the terminal node of the path."
+
   (declare #.*standard-optimize-settings*)
   (check-type kw simple-string)
+
   (loop
      :with node = trie
      :for c :across kw
@@ -138,7 +152,7 @@ child node is bound to the CHILD variable."
 
 (defun trie-traverse-dfo (trie handler)
   "Traverse the trie in the Depth-First-Order and call the given
-handler function on each node.."
+handler function on each node."
   (check-type handler function)
 
   (let ((stack nil))
@@ -454,24 +468,44 @@ first occurence."
 (define-constant +ac-alphabet+ 256)
 
 (defstruct tabac
-  (start -1 :type fixnum)	    ; starting state
-  trans				    ; transitions
-  final				    ; final states
-  match-len			    ; array that stores pattern length
-  )
+  "Defines an Aho-Corasick DFA based on tables.
+
+Slots:
+
+* `start` - initial state
+* `trans` - a table of transition tables
+* `final` - marks final states
+* `match-len` - stores length of the keyword corresponding to the final state"
+
+  ;; initial state
+  (start -1 :type fixnum)
+  ;; transitions
+  (trans nil :type (or null (simple-array (or null (simple-array fixnum)))))
+  ;; final states
+  (final (make-array 0 :element-type 'fixnum)
+	 :type (simple-array fixnum))
+  ;; array that stores corresponding pattern length
+  (match-len (make-array 0 :element-type 'fixnum)
+	     :type (simple-array fixnum)))
 
 ;; --------------------------------------------------------
 
 (defun trie->tabular-ac (trie)
-  "Gets a trie and transforms it into a table-based DFA for the
-Aho-Corasick automata."
+  "Given an Aho-Corasick trie and transforms it into a table-based DFA
+for the Aho-Corasick automata."
 
   (let* ((nodes-count (trie-node-id trie))
 	 (idx (make-tabac
 	       :start nodes-count
-	       :match-len (make-array (+ nodes-count 1) :initial-element -1)
-	       :trans (make-array (+ nodes-count 1))
-	       :final (make-array (+ nodes-count 1) :initial-element -1))))
+	       :match-len (make-array (+ nodes-count 1)
+				      :initial-element -1
+				      :element-type 'fixnum)
+	       :trans (make-array (+ nodes-count 1)
+				  :initial-element nil
+				  :element-type '(or null (simple-array fixnum)))
+	       :final (make-array (+ nodes-count 1)
+				  :initial-element -1
+				  :element-type 'fixnum))))
     (trie-traverse-dfo
      trie
      #'(lambda (node)
@@ -486,7 +520,8 @@ Aho-Corasick automata."
 	 ;; initialize transitions from this node with the failure
 	 ;; transition
 	 (let ((trans (make-array +ac-alphabet+
-				  :initial-element (trie-node-id (trie-node-fail node)))))
+				  :initial-element (trie-node-id (trie-node-fail node))
+				  :element-type 'fixnum)))
 	   (map-trie-children (node child)
 	     (setf (aref trans (char-code (trie-node-label child)))
 		   (trie-node-id child)))
@@ -496,11 +531,15 @@ Aho-Corasick automata."
 
 ;; --------------------------------------------------------
 
-(declaim (inline tabac-transition))
+(declaim (inline tabac-transition)
+	 (ftype (function (tabac
+			   fixnum
+			   base-char)
+			  fixnum) tabac-transition))
 (defun tabac-transition (idx state c)
   "Returns a new state based on the given char from the current state."
-  (aref (aref (tabac-trans idx) state)
-	(char-code c)))
+  (the fixnum (aref (aref (tabac-trans idx) state)
+		    (char-code c))))
 
 ;; --------------------------------------------------------
 
@@ -515,24 +554,28 @@ patterns."
 ;; --------------------------------------------------------
 
 (defun search-tabac (idx txt)
-  ;; this function generates 48 warnings when compiled on SBCL
+  ;; this function generates 9 warnings when compiled on SBCL
   (declare #.*standard-optimize-settings*)
   (check-type idx tabac)
   (check-type txt simple-string)
 
   (iter
+    (declare (iterate:declare-variables))
     (for c in-string txt)
-    (for pos from 0 below (length txt))
-    (for state
+    (declare (type base-char c))
+    (for (the fixnum pos) from 0 below (the fixnum (length txt)))
+    (for (the fixnum state)
       first (tabac-transition idx (tabac-start idx) c)
       then (tabac-transition idx state c))
-    (if (= state (tabac-start idx))
+    (declare (type fixnum state)
+	     (type fixnum pos))
+    (if (= state (the fixnum (tabac-start idx)))
 	(progn
-	  (setf state (tabac-transition idx state c))))
+	  (setf state (the fixnum (tabac-transition idx state c)))))
     (when (>= (the fixnum (aref (tabac-final idx) state))
 	      0)
-      (return (values (+ 1 (- pos (aref (tabac-match-len idx) state)))
-		      (aref (tabac-final idx) state))))))
+      (return (values (the fixnum (+ 1 (- pos (aref (tabac-match-len idx) state))))
+		      (the fixnum (aref (tabac-final idx) state)))))))
 
 ;; --------------------------------------------------------
 
