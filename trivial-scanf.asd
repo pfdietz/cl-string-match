@@ -1,6 +1,6 @@
-;;; -*- package: ASCII-STRINGS.SYSTEM; Syntax: Common-lisp; Base: 10 -*-
+;;; -*- package: TRIVIAL-SCANF.SYSTEM; Syntax: Common-lisp; Base: 10 -*-
 
-;; Copyright (c) 2013, Victor Anyakin <anyakinvictor@yahoo.com>
+;; Copyright (c) 2015, Victor Anyakin <anyakinvictor@yahoo.com>
 ;; All rights reserved.
 
 ;; Redistribution and use in source and binary forms, with or without
@@ -26,27 +26,26 @@
 ;; SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (unless (find-package :ascii-strings.system)
-    (defpackage :ascii-strings.system
+  (unless (find-package :trivial-scanf.system)
+    (defpackage :trivial-scanf.system
       (:use :common-lisp :asdf))))
 
 ;; --------------------------------------------------------
 
-(in-package :ascii-strings.system)
+(in-package :trivial-scanf.system)
 
 ;; --------------------------------------------------------
 
-(asdf:defsystem #:ascii-strings
+(asdf:defsystem #:trivial-scanf
   :description
-  "Operations on ASCII strings. Essentially this can be any kind of
-single-byte encoded strings."
+  "A trivial scanf-like functionality implementation."
   :license "BSD"
   :author "Vityok https://bitbucket.org/vityok"
   :version "2015.9.16"
-  :depends-on (:alexandria :babel)
+  :depends-on (:alexandria :iterate :proc-parse :parse-float)
   :components ((:module "contrib"
 			:serial T
 			:components
-			((:file "ascii-strings")))))
+			((:file "scanf")))))
 
 ;; EOF

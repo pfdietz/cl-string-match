@@ -15,18 +15,21 @@ string-processing algorithms.
 There are similar libraries/packages with slight differences. Check,
 for instance, com.informatimago.common-lisp.cesarum.ascii.
 
-
 This package also provides a faster alternative to the standard
 read-line function. A line reader is created by the
 make-ub-line-reader function, an ub-string is read by the
 ub-read-line, and a standard line can be read by the
-ub-read-line-string.")
+ub-read-line-string.
+
+Please note, that while ASCII uses 7-bits per character, this library
+works with octets, using 8-bits per character.")
 
   (:export
    ;; common functions and types
    :ub-char
    :ub-string
    :ub-buffer
+   :make-ub-buffer
    :ub-char-code-limit
    :ascii-char-code
 
@@ -86,8 +89,10 @@ ub-read-line-string.")
    ;; custom functions
    :ub-to-string
    :string-to-ub
+   :octets-to-ub
    :make-ub-string
    :ub-subseq
+   :make-substitution-table
 
    ;; line reader
    :make-ub-line-reader
@@ -100,8 +105,12 @@ ub-read-line-string.")
 (in-package :ascii-strings)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (declaim (optimize (speed 3)
-		     (safety 0))))
+  (declaim
+   #-sm-debug-enabled
+   (optimize (speed 3)
+	     (safety 0))
+   #+sm-debug-enabled
+   (optimize safety debug)))
 
 ;; --------------------------------------------------------
 
@@ -119,6 +128,10 @@ deals with simple arrays."
   "Buffer of octets is a simple array to allow compiler
 optimizations."
   '(simple-array ub-char (*)))
+
+(defun make-ub-buffer (size)
+  "Allocate an ub-buffer of the given size."
+  (make-array size :element-type 'ub-char))
 
 (define-constant ub-char-code-limit 256
   :documentation
@@ -153,6 +166,8 @@ optimizations."
 (defun ub-char>= (c1 c2)
   (>= c1 c2))
 
+;; --------------------------------------------------------
+
 (defun ub-CHAR-EQUAL ()
   (error "TODO"))
 (defun ub-CHAR-NOT-EQUAL ()
@@ -169,20 +184,32 @@ optimizations."
 ;; Function CHARACTER
 ;; Function CHARACTERP
 
+;; --------------------------------------------------------
+
 (declaim (inline ub-alpha-char-p))
 (defun ub-alpha-char-p (c)
   (or (ub-lower-case-p c)
       (ub-upper-case-p c)))
 
+;; --------------------------------------------------------
+
 (declaim (inline ub-alphanumericp))
 (defun ub-alphanumericp (c)
+  "Returns true if character is an alphabetic character or a numeric
+character; otherwise, returns false."
   (or (ub-alpha-char-p c)
       (and (>= c 48) (<= c 57))))
+
+;; --------------------------------------------------------
 
 (defun ub-DIGIT-CHAR ()
   (error "TODO"))
 
-(defun ub-DIGIT-CHAR-P ()
+(defun ub-DIGIT-CHAR-P (c &optional r)
+  "Tests whether char is a digit in the specified radix (i.e., with a
+weight less than radix). If it is a digit in that radix, its weight is
+returned as an integer; otherwise nil is returned."
+  (declare (ignore c) (ignore r))
   (error "TODO"))
 
 (defun ub-GRAPHIC-CHAR-P ()
@@ -191,11 +218,15 @@ optimizations."
 (defun ub-STANDARD-CHAR-P ()
   (error "TODO"))
 
+;; --------------------------------------------------------
+
 (declaim (inline ub-char-upcase))
 (defun ub-char-upcase (c)
   (if (ub-lower-case-p c)
       (- c 32)
       c))
+
+;; --------------------------------------------------------
 
 (declaim (inline ub-char-downcase))
 (defun ub-char-downcase (c)
@@ -203,15 +234,24 @@ optimizations."
       (+ c 32)
       c))
 
+;; --------------------------------------------------------
+
 (declaim (inline ub-upper-case-p))
 (defun ub-upper-case-p (c)
   (and (>= c 65) (<= c 90)))
+
+;; --------------------------------------------------------
 
 (declaim (inline ub-lower-case-p))
 (defun ub-lower-case-p (c)
   (and (>= c 97) (<= c 122)))
 
-(defun ub-BOTH-CASE-P ())
+;; --------------------------------------------------------
+
+(defun ub-BOTH-CASE-P ()
+  (error "TODO"))
+
+;; --------------------------------------------------------
 
 (declaim (inline ub-char-code))
 (defun ub-char-code (char)
@@ -219,15 +259,22 @@ optimizations."
 octet), it is essentially an identity function."
   char)
 
+;; --------------------------------------------------------
+
 (declaim (inline ub-char-int))
 (defun ub-char-int (char)
   char)
 
-(declaim (ftype (function (character) ub-char) ascii-char-code)
-         (inline ascii-char-code))
-(defun ascii-char-code (char)
-  "This is like the standard CHAR-CODE but returns an octet."
-  (ldb (byte 8 0) (char-code char)))
+;; --------------------------------------------------------
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (declaim (ftype (function (character) ub-char) ascii-char-code)
+	   (inline ascii-char-code))
+  (defun ascii-char-code (char)
+    "This is like the standard CHAR-CODE but returns an octet."
+    (ldb (byte 8 0) (char-code char))))
+
+;; --------------------------------------------------------
 
 (defun ub-CODE-CHAR ()
   (error "TODO"))
@@ -263,34 +310,69 @@ octet), it is essentially an identity function."
 ;; todo: implement remaining string comparison functions and properly
 ;; handle nil values for start,end parameters
 (defun %ub-string-compare (string1 start1 end1 string2 start2 end2)
-  (declare (ub-string string1 string2))
-  (declare (fixnum start1 end1 start2 end2))
 
-  (let ((len1 (- end1 start1))
-        (len2 (- end2 start2)))
-    (declare (fixnum len1 len2))
-    (cond
-      ((= len1 len2)
-       (do ((index1 start1 (1+ index1))
-            (index2 start2 (1+ index2)))
-           ((= index1 end1) nil)
-         (declare (fixnum index1 index2))
-         (if (/= (ub-schar string1 index1) (ub-schar string2 index2))
-             (return index1))))
-      ((> len1 len2)
-       (do ((index1 start1 (1+ index1))
-            (index2 start2 (1+ index2)))
-           ((= index2 end2) index1)
-         (declare (fixnum index1 index2))
-         (if (/= (ub-schar string1 index1) (ub-schar string2 index2))
-             (return index1))))
-      (t
-       (do ((index1 start1 (1+ index1))
-            (index2 start2 (1+ index2)))
-           ((= index1 end1) index1)
-         (declare (fixnum index1 index2))
-         (if (/= (ub-schar string1 index1) (ub-schar string2 index2))
-             (return index1)))))))
+  (declare (ub-string string1 string2))
+
+  (let ((%end1 (or end1 (length string1)))
+	(%end2 (or end2 (length string2))))
+
+    (declare (fixnum start1 %end1 start2 %end2))
+
+    (let ((len1 (- %end1 start1))
+	  (len2 (- %end2 start2)))
+      (declare (fixnum len1 len2))
+      (cond
+	((= len1 len2)
+	 (do ((index1 start1 (1+ index1))
+	      (index2 start2 (1+ index2)))
+	     ((= index1 %end1) nil)
+	   (declare (fixnum index1 index2))
+	   (if (/= (ub-schar string1 index1) (ub-schar string2 index2))
+	       (return index1))))
+	((> len1 len2)
+	 (do ((index1 start1 (1+ index1))
+	      (index2 start2 (1+ index2)))
+	     ((= index2 %end2) index1)
+	   (declare (fixnum index1 index2))
+	   (if (/= (ub-schar string1 index1) (ub-schar string2 index2))
+	       (return index1))))
+	(t
+	 (do ((index1 start1 (1+ index1))
+	      (index2 start2 (1+ index2)))
+	     ((= index1 %end1) index1)
+	   (declare (fixnum index1 index2))
+	   (if (/= (ub-schar string1 index1) (ub-schar string2 index2))
+	       (return index1))))))))
+
+;; --------------------------------------------------------
+
+(defmacro ub-string<>=*-body (lessp equalp)
+  "Makes a body of the string comparison functions. Borrowed from the
+string.lisp file of the SBCL sources."
+  ;; LESSP is true if the desired expansion is for STRING<* or STRING<=*.
+  ;; EQUALP is true if the desired expansion is for STRING<=* or STRING>=*.
+  (let ((offset1 (gensym)))
+    `(let ((index (%ub-string-compare string1 start1 end1
+				      string2 start2 end2))
+	   (%end1 (or end1 (length string1)))
+	   (%end2 (or end2 (length string2)))
+	   (,offset1 0))
+       (if index
+	   (cond ((= (the fixnum index) (the fixnum %end1))
+		  ,(if lessp
+		       `(- (the fixnum index) ,offset1)
+                       `nil))
+		 ((= (+ (the fixnum index) (- start2 start1))
+		     (the fixnum %end2))
+		  ,(if lessp
+		       `nil
+                       `(- (the fixnum index) ,offset1)))
+		 ((,(if lessp 'ub-char< 'ub-char>)
+		    (ub-char string1 index)
+		    (ub-char string2 (+ (the fixnum index) (- start2 start1))))
+		  (- (the fixnum index) ,offset1))
+		 (t nil))
+	   ,(if equalp `(- (the fixnum %end1) ,offset1) nil)))))
 
 ;; --------------------------------------------------------
 
@@ -320,20 +402,50 @@ octet), it is essentially an identity function."
 ;; --------------------------------------------------------
 
 (defun ub-string= (string1 string2 &key (start1 0) end1 (start2 0) end2)
-  (not (%ub-string-compare string1 start1 end1 string2 start2 end2)))
+  "Returns true if the supplied substrings are of the same length and
+contain the same characters in corresponding positions; otherwise it
+returns false."
+  (not (%ub-string-compare string1 start1 end1
+			   string2 start2 end2)))
 
 ;; --------------------------------------------------------
 
-(defun ub-STRING/= ()
-  (error "TODO"))
-(defun ub-STRING< ()
-  (error "TODO"))
-(defun ub-STRING> ()
-  (error "TODO"))
-(defun ub-STRING<= ()
-  (error "TODO"))
-(defun ub-STRING>= ()
-  (error "TODO"))
+(defun ub-string/= (string1 string2 &key (start1 0) end1 (start2 0) end2)
+  "Returns true if the supplied substrings are different; otherwise it
+is false."
+  (%ub-string-compare string1 start1 end1
+		      string2 start2 end2))
+
+;; --------------------------------------------------------
+
+(defun ub-string< (string1 string2 &key (start1 0) end1 (start2 0) end2)
+  "Returns true if substring1 is less than substring2; otherwise it is
+false."
+  (ub-string<>=*-body t nil))
+
+;; --------------------------------------------------------
+
+(defun ub-string> (string1 string2 &key (start1 0) end1 (start2 0) end2)
+  "Returns true if substring1 is greater than substring2; otherwise it
+is false."
+  (ub-string<>=*-body nil nil))
+
+;; --------------------------------------------------------
+
+(defun ub-string<= (string1 string2 &key (start1 0) end1 (start2 0) end2)
+  "Returns true if substring1 is less than or equal to substring2;
+otherwise it is false."
+  (ub-string<>=*-body t t))
+
+;; --------------------------------------------------------
+
+(defun ub-string>= (string1 string2 &key (start1 0) end1 (start2 0) end2)
+  "Returns true if substring1 is greater than or equal to substring2;
+otherwise it is false."
+  (ub-string<>=*-body nil t))
+
+;; --------------------------------------------------------
+
 (defun ub-STRING-EQUAL ()
   (error "TODO"))
 (defun ub-STRING-NOT-EQUAL ()
@@ -350,14 +462,34 @@ octet), it is essentially an identity function."
 ;; --------------------------------------------------------
 ;; Data convertors
 
-(defun ub-to-string (ustr &key (start 0) end)
+(defun make-substitution-table (subst)
+  (let ((tbl (make-ub-buffer UB-CHAR-CODE-LIMIT)))
+    ;; initialize the substitution table to replace the characters
+    ;; with their identities - resulting in no substitution
+    (loop :for u :from 0 :below UB-CHAR-CODE-LIMIT
+       :do (setf (aref tbl u) u))
+    ;; now process the substitutions - this is subset of all
+    ;; characters, user must specify only them and not everything else
+    (loop :for (key val) :in subst
+       :do (setf (aref tbl key) val))
+    tbl))
+
+(defvar *default-substitution-table*
+  (make-substitution-table '((0 #.(ascii-char-code #\?))))
+  "Substitution table used to convert ub-strings to the standard
+strings by default. Since character with code 0 is not very welcome in
+the world of C, we are converting it to an ordinary character.")
+
+(defun ub-to-string (ustr &key (start 0) end (subst *default-substitution-table*))
   "Converts either an UB-STRING or UB-BUFFER into a standard Common
 Lisp string.
 
 START, END the start and end offsets within the given USTR to
            translate into a standard string.
 "
-  (declare (type fixnum start))
+  (declare (type fixnum start)
+	   (type ub-buffer subst))
+
   (check-type ustr (or ub-string ub-buffer))
 
   (let* ((%end (the fixnum (or end (length ustr))))
@@ -367,26 +499,38 @@ START, END the start and end offsets within the given USTR to
       (ub-buffer
        (loop :for i :from 0 :below %length
 	  :do (setf (char str i)
-		    (code-char (aref (the ub-buffer ustr)
-				     (+ i start))))))
+		    (code-char (aref subst
+				     (aref (the ub-buffer ustr)
+					   (+ i start)))))))
       (ub-string
        (loop :for i :from 0 :below %length
 	  :do (setf (char str i)
-		    (code-char (aref ustr
-				     (+ i start)))))))
+		    (code-char (aref subst
+				     (aref ustr
+					   (+ i start))))))))
     str))
 
 ;; --------------------------------------------------------
 
 (defun string-to-ub (str)
   "Convert a standard Lisp String into an octets vector."
-  (declare (type simple-string str)
-           (optimize speed))
+  (declare (type simple-string str))
 
   (let ((ustr (make-ub-string (length str))))
     (loop :for i :from 0 :below (length str)
        :do (setf (aref ustr i)
                  (ascii-char-code (char str i))))
+    ustr))
+
+;; --------------------------------------------------------
+
+(defun octets-to-ub (vec)
+  "Convert a simple vector into an octets vector (ub-string)."
+
+  (let ((ustr (make-ub-string (length vec))))
+    (loop :for i :from 0 :below (length vec)
+       :do (setf (aref ustr i)
+                 (svref vec i)))
     ustr))
 
 ;; --------------------------------------------------------
@@ -481,6 +625,8 @@ resets the reader to its initial state."
 
 ;; --------------------------------------------------------
 
+(define-constant +newline+ (ascii-char-code #\Newline))
+
 (defun ub-read-line-raw (reader)
   "Reads data into the pre-allocated buffer in the READER structure
 and returns two values: start and end positions of the line within the
@@ -499,16 +645,18 @@ symbol."
 
   (let* ((old-pos (ub-line-reader-pos reader))
          (new-pos (loop :for i :from old-pos :below (ub-line-reader-fill reader)
-			:until (= (aref (ub-line-reader-buffer reader) i)
-				  #.(char-code #\Newline))
+			:until (= (ub-char (ub-line-reader-buffer reader) i)
+				  +newline+)
 			:finally (return i))))
 
     (declare (type fixnum old-pos)
              (type fixnum new-pos))
 
-    (if (and (= (ub-char (ub-line-reader-buffer reader)
+
+    (if (and (< new-pos +ub-line-reader-buffer-size+)
+	     (= (ub-char (ub-line-reader-buffer reader)
                          new-pos)
-                #.(char-code #\Newline))
+                +newline+)
              ;; we are not advancing forward, it looks like we've
              ;; reached end of file and the last character is a newline
              (/= old-pos
@@ -519,40 +667,40 @@ symbol."
 	  (setf (ub-line-reader-pos reader) (1+ new-pos))
 	  (return-from ub-read-line-raw (values old-pos new-pos)))
 
-      ;; else
-      (progn
-	;; when the line ends in the next chunk of data, we have to
-	;; move the currently read incomplete line to the beginning
-	;; of the reader buffer, fill the rest of the buffer with
-	;; data from the stream and proceed with our task
-	(setf (ub-line-reader-fill reader) (- new-pos
-					      (ub-line-reader-pos reader))
-	      (ub-line-reader-pos reader)  0)
+	;; else
+	(progn
+	  ;; when the line ends in the next chunk of data, we have to
+	  ;; move the currently read incomplete line to the beginning
+	  ;; of the reader buffer, fill the rest of the buffer with
+	  ;; data from the stream and proceed with our task
+	  (setf (ub-line-reader-fill reader) (- new-pos
+						(ub-line-reader-pos reader))
+		(ub-line-reader-pos reader)  0)
 
-	(replace (the ub-buffer (ub-line-reader-buffer reader))
-		 (the ub-buffer (ub-line-reader-buffer reader))
-		 :start1 0 :end1 (ub-line-reader-fill reader)
-		 :start2 old-pos :end2 new-pos)
+	  (replace (the ub-buffer (ub-line-reader-buffer reader))
+		   (the ub-buffer (ub-line-reader-buffer reader))
+		   :start1 0 :end1 (ub-line-reader-fill reader)
+		   :start2 old-pos :end2 new-pos)
 
-	(let ((old-fill (ub-line-reader-fill reader)))
+	  (let ((old-fill (ub-line-reader-fill reader)))
 
-	  (setf (ub-line-reader-fill reader)
-		(read-sequence (ub-line-reader-buffer reader)
-			       (ub-line-reader-stream reader)
-			       :start (ub-line-reader-fill reader)
-			       :end +ub-line-reader-buffer-size+))
-	  (if (= (ub-line-reader-fill reader) old-fill)
-	      (progn
-		;; end of file is reached, return the last line and
-		;; set the corresponding flag
-		(setf (ub-line-reader-eof reader) T)
-		(return-from ub-read-line-raw
-		  (values (ub-line-reader-pos reader)
-			  old-fill)))
+	    (setf (ub-line-reader-fill reader)
+		  (read-sequence (ub-line-reader-buffer reader)
+				 (ub-line-reader-stream reader)
+				 :start (ub-line-reader-fill reader)
+				 :end +ub-line-reader-buffer-size+))
+	    (if (= (ub-line-reader-fill reader) old-fill)
+		(progn
+		  ;; end of file is reached, return the last line and
+		  ;; set the corresponding flag
+		  (setf (ub-line-reader-eof reader) T)
+		  (return-from ub-read-line-raw
+		    (values (ub-line-reader-pos reader)
+			    old-fill)))
 
-	    ;; read the complete line after the second part was
-	    ;; obtained from the disk
-	    (ub-read-line-raw reader)))))))
+		;; read the complete line after the second part was
+		;; obtained from the disk
+		(ub-read-line-raw reader)))))))
 
 ;; --------------------------------------------------------
 
