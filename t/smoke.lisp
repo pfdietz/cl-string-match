@@ -282,6 +282,22 @@ and the text works."
 
 ;; --------------------------------------------------------
 
+(define-test lcss-test
+    (Assert-true (equal (cl-string-match:longest-common-substring "" "") ""))
+    (assert-true (equal (cl-string-match:longest-common-substring "a" "") ""))
+    (assert-true (equal (cl-string-match:longest-common-substring "" "a") ""))
+    (assert-true (equal (cl-string-match:longest-common-substring "a" "a") "a"))
+    (assert-true (equal (cl-string-match:longest-common-substring "ab" "a") "a"))
+    (assert-true (equal (cl-string-match:longest-common-substring "ba" "a") "a"))
+    (assert-true (equal (cl-string-match:longest-common-substring "a" "ab") "a"))
+    (assert-true (equal (cl-string-match:longest-common-substring "a" "ba") "a"))
+    (assert-true (member (cl-string-match:longest-common-substring "ab" "ba") '("a" "b") :test #'equal))
+    (assert-true (equal (cl-string-match:longest-common-substring "b" "abc") "b"))
+    (assert-true (equal (cl-string-match:longest-common-substring "abc" "b") "b"))
+    )
+
+;; --------------------------------------------------------
+
 (setf lisp-unit:*print-summary* T
       lisp-unit:*print-failures* T
       lisp-unit:*print-errors* T)

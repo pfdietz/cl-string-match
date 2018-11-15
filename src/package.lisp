@@ -119,6 +119,9 @@
    :match-pos-start
    :match-pos-end
 
+   ;; LCSS
+   :longest-common-substring
+
    ;; UTILITIES
    :prefixed-with
    :suffixed-with))

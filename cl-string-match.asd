@@ -66,7 +66,9 @@ matching) algorithms: brute-force, Boyer-Moore, Rabin-Karp, etc."
                          (:file "compiled-aho-corasick")
 			 (:file "suffix-tree")
 			 (:file "pre")
-			 (:file "doc"))))
+			 (:file "doc")
+			 (:file "longest-common-substring")
+			 )))
   :in-order-to ((test-op (load-op cl-string-match-test))))
 
 ;; EOF
