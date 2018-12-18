@@ -49,7 +49,7 @@
 
 ;; --------------------------------------------------------
 
-(defun test-ub-count-lines (fname)
+(define-test test-ub-count-lines (fname)
   (:tag :contrib :ascii-strings)
   (with-open-file (in fname
                       :direction :input
@@ -62,7 +62,7 @@
 
 ;; --------------------------------------------------------
 
-(defun test-count-lines (fname)
+(define-test test-count-lines (fname)
   (:tag :contrib :ascii-strings)
   (with-open-file (in fname
                       :direction :input)

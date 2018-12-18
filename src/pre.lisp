@@ -352,6 +352,7 @@ While in the body of the macro, `$$` will be bound to the
   (choose
    (exprs :or choose
 	  #'(lambda ($1 $2 $3)
+	      (declare (ignore $2))
 	      `((:split 0 ,(1+ (length $1))) ,@$1 (:jump ,(length $3)) ,@$3)))
    (exprs #'(lambda ($1) `(,@$1))))
 
@@ -360,25 +361,32 @@ While in the body of the macro, `$$` will be bound to the
 	 nil)
 
   (expr (simple #'(lambda ($1) $1))
-	(:error #'(lambda ($1) (error "Illegal re pattern."))))
+	(:error #'(lambda ($1)
+		    (declare (ignore $1))
+		    (error "Illegal re pattern."))))
 
   (simple
    (inst :?
-	 #'(lambda ($1 $2) `((:split 0 ,(length $1)) ,@$1)))
+	 #'(lambda ($1 $2)
+	     (declare (ignore $2))
+	     `((:split 0 ,(length $1)) ,@$1)))
    (inst :+
 	 #'(lambda ($1 $2)
+	     (declare (ignore $2))
 	     `(,@$1 (:split ,(- (1+ (length $1))) 0))))
    (inst :-
 	 #'(lambda ($1 $2)
+	     (declare (ignore $2))
 	     `(,@$1 (:split 0 ,(- (1+ (length $1)))))))
    (inst :*
 	 #'(lambda ($1 $2)
+	     (declare (ignore $2))
 	     (let ((n (length $1)))
 	       `((:split 0 ,(1+ n)) ,@$1 (:jump ,(- (+ n 2)))))))
    (inst #'(lambda ($1) $1)))
 
-  (inst (:^ #'(lambda ($1) `((:start))))
-	(:$ #'(lambda ($1) `((:end))))
+  (inst (:^ #'(lambda ($1) (declare (ignore $1)) `((:start))))
+	(:$ #'(lambda ($1) (declare (ignore $1)) `((:end))))
 	(:char #'(lambda ($1) `((:char ,$1))))
 	(:any #'(lambda ($1)  `((:any ,$1))))
 	(:none #'(lambda ($1)  `((:none ,$1))))
